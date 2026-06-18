@@ -12,10 +12,14 @@ PLC (ADS/TCP 48898) → Telegraf → [SQL Server + Prometheus /metrics]
 
 ```
 ot-monitoring/
-├── phase1-laptop/        # PoC: WSL2 + Podman Desktop, egy gépen
-├── phase2-vm-infra/      # Enterprise szimuláció: külön VM-ek (Collector, Monitoring, SQL)
-└── shared/               # Közös Grafana dashboardok és SQL sémák
-    ├── grafana-dashboards/
+├── phase1-laptop/           # PoC: WSL2 + Podman Desktop, egy gépen
+├── phase2-vm-infra/         # Enterprise szimuláció: 3 VM (Collector, Monitoring, SQL)
+├── phase3-twincat-vm/       # TwinCAT VM bekötése ADS protokollon
+│   ├── twincat/             # GVL, ST szimulációs PLC program, ads-test.py
+│   └── collector-vm-patch/  # Telegraf konfig csere (prometheus → ads input)
+└── shared/                  # Közös Grafana dashboardok és SQL sémák
+    ├── grafana-dashboards/  # EN dashboardok (01-03)
+    │   └── hu/              # Magyar dashboardok (04-06)
     └── sql/
 ```
 
@@ -117,25 +121,84 @@ Hálózati terv és tűzfalszabályok: [phase2-vm-infra/network/](phase2-vm-infr
 
 ---
 
-## Grafana dashboardok (közös forrás)
+## Phase 3 — TwinCAT VM bekötése
 
-A `shared/grafana-dashboards/` mappa tartalmazza az egyetlen forrást.
-Phase 1 és Phase 2 Grafana provisioning mappái ezekre mutatnak (Phase 1 szimlink,
-Phase 2-ben a `setup.sh` másolja oda).
+Lásd: [phase3-twincat-vm/README.md](phase3-twincat-vm/README.md)
 
+A Phase 2 infrastruktúra változatlan marad. Egyetlen módosítás:
+a Collector VM Telegraf konfigjában `[[inputs.prometheus]]` → `[[inputs.ads]]`.
+
+| Lépés | Felelős | Útmutató |
+|---|---|---|
+| TwinCAT VM telepítés, GVL + PLC program | PLC engineer | `phase3-twincat-vm/twincat/README.md` |
+| ADS kapcsolat teszt | Bárki | `python3 ads-test.py` |
+| Telegraf konfig csere | Rendszergazda | `collector-vm-patch/README.md` |
+
+**9 PLC input változó → 20+ dashboard elem** — a Monitoring VM és Grafana változatlan marad.
+
+---
+
+## Grafana dashboardok
+
+### Dashboardok listája
+
+| Szám | Cím | Nyelv | Mappa |
+|---|---|---|---|
+| 01 | Factory Overview | EN | Mérnöki nézet |
+| 02 | Machine Detail | EN | Mérnöki nézet |
+| 03 | OEE & KPI | EN | Mérnöki nézet |
+| 04 | Gyárfelügyelet | HU | Termelési nézet |
+| 05 | Gép részletek | HU | Termelési nézet |
+| 06 | OEE és KPI | HU | Vezetői KPI |
+
+A HU dashboardok (`shared/grafana-dashboards/hu/`) azonos Prometheus lekérdezéseket
+használnak mint az EN változatok — csak a szövegek (panel címek, tengelyfeliratok,
+értékmappingek) vannak lefordítva. Külön UID-ek, egyszerre élnek Grafanában.
+
+### Grafana felhasználók és jogosultságok (Phase 2 — 192.168.100.20:3000)
+
+| Felhasználó | Jelszó | Látható mappák | Jogkör |
+|---|---|---|---|
+| `operator` | `Operator1!` | Termelési nézet | Viewer (olvasás, export) |
+| `menedzser` | `Menedzser1!` | Termelési nézet + Vezetői KPI | Viewer (olvasás, export) |
+| `admin` | `changeme_poc_2024` | Minden mappa | Admin (szerkesztés, törlés) |
+
+**Mappastruktúra és jogosultság logika:**
+- **Termelési nézet** — operator és menedzser látja: gépallapot, termelési tempó (HU)
+- **Vezetői KPI** — csak menedzser látja: OEE, MTBF, leállás elemzés (HU)
+- **Mérnöki nézet** — csak admin látja: EN dashboardok, szerkeszthető
+
+> **Megjegyzés (OSS korlát):** Grafana Community verzióban mappa-szintű jogosultság
+> érhető el. Dashboard-szintű és sor-szintű (row-level) jogosultság csak Grafana
+> Enterprise/Cloud verzióban elérhető.
+
+### Új dashboard hozzáadása
+
+```bash
+# JSON fájl másolása a monitoring VM-re
+scp uj_dashboard.json root@192.168.100.20:/opt/ot-monitoring/monitoring/grafana/provisioning/dashboards/
+
+# Grafana újraindítása (provisioning betöltés)
+ssh root@192.168.100.20 "podman restart grafana"
+```
+
+A `shared/grafana-dashboards/` mappa az egyetlen forrás.
+Phase 1 és Phase 2 Grafana provisioning mappái ezeket töltik be.
 A dashboardok változtatás nélkül működnek mindkét fázisban.
 
 ---
 
-## PoC → Enterprise átállás ellenőrzőlista
+## PoC → Éles átállás ellenőrzőlista
 
 | Lépés | Teendő |
 |---|---|
-| PLC kapcsolat | `telegraf.conf`-ban `[[inputs.prometheus]]` → `[[inputs.ads]]` blokk |
-| SQL | `.env`-ben `SQL_SERVER` a valódi SQL Server IP-re, SQL output aktiválás |
+| PLC kapcsolat | `telegraf.conf`-ban `[[inputs.prometheus]]` → `[[inputs.ads]]` — lásd Phase 3 |
+| SQL | `.env`-ben `SQL_SERVER` a valódi SQL Server IP-re, `[[outputs.sql]]` aktiválás |
 | Hálózat | Tűzfalszabályok alkalmazása a `network/firewall-rules.md` alapján |
-| Grafana | `GF_SECURITY_ADMIN_PASSWORD` erős jelszóra cserélése |
+| Grafana jelszavak | `admin`, `operator`, `menedzser` jelszavak erős jelszóra cserélése |
+| Grafana HTTPS | Reverse proxy (nginx/traefik) TLS-sel |
 | Volumes | `prometheus_data` és `grafana_data` persistent storage-ra (NFS/PVC) |
+| SELinux | `setenforce 1` + megfelelő SELinux policy a VM-eken |
 
 ---
 
