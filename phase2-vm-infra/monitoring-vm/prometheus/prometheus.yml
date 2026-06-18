@@ -1,0 +1,16 @@
+global:
+  scrape_interval:     15s
+  evaluation_interval: 15s
+  external_labels:
+    site:        '${SITE_NAME:-factory}'
+    environment: '${ENVIRONMENT:-production}'
+
+scrape_configs:
+  # Collector VM Telegraf — receives data from all PLCs
+  - job_name: 'telegraf-collector'
+    static_configs:
+      - targets: ['${COLLECTOR_VM_IP:-collector-vm}:9273']
+
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']

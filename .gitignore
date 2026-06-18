@@ -1,0 +1,52 @@
+# Environment files — never commit real credentials
+.env
+**/.env
+!.env.example
+**/.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+
+# Container volumes / local data
+data/
+prometheus_data/
+grafana_data/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/settings.json
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+
+# Temp
+*.tmp
+*.bak
+
+# VMware VM files (GB-os, nem való repoba)
+VM/
+*.vmdk
+*.vmem
+*.vmem.lck
+*.vmxf
+*.nvram
+*.vmsd
+*.scoreboard
+*.iso
+*.exe
+
+# Prompt / session fajlok
+claude_code_prompt*.md
+prezentacio_prompt.md

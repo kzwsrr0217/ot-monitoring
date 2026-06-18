@@ -1,0 +1,132 @@
+// ============================================================
+// E_MachineState — DUT (Enumeration)
+// TwinCAT XAE: DUTs → Add → DUT → Enumeration → Név: E_MachineState
+// ============================================================
+TYPE E_MachineState :
+(
+    IDLE       := 0,
+    RUNNING    := 1,
+    MICRO_STOP := 2,
+    LONG_STOP  := 3,
+    FAULT      := 4
+);
+END_TYPE
+
+
+// ============================================================
+// MAIN POU — Standard PLC Project → POUs → MAIN
+// Task: PlcTask, Cycle time: 10ms
+// ============================================================
+PROGRAM MAIN
+VAR
+    eState          : E_MachineState := E_MachineState.IDLE;
+
+    tCycleTimer     : TON;
+    tStopTimer      : TON;
+    tNextStop       : TON;
+    tNextFault      : TON;
+
+    tCycleStart     : TIME;
+    tStopStart      : TIME;
+
+    bFirstScan      : BOOL := TRUE;
+    nRandSeed       : UDINT := 12345;
+    nRandVal        : UDINT;
+    nStopSecs       : UDINT;
+    nFaultSecs      : UDINT;
+    nNextStopSecs   : UDINT;
+    nNextFaultSecs  : UDINT;
+
+    // Segédváltozó: UDINT ciklusidő kiszámításához (eredmény negatív is lehet)
+    nTempCycleTime  : DINT;
+END_VAR
+
+// === INIT ===
+IF bFirstScan THEN
+    bFirstScan                      := FALSE;
+    GVL_Monitoring.xMachineON      := TRUE;
+    eState                          := E_MachineState.RUNNING;
+    tCycleStart                     := TIME();
+    nNextStopSecs                   := 280 + (nRandVal MOD 40);   // ~5 perc
+    nNextFaultSecs                  := 3500 + (nRandVal MOD 500); // ~60 perc
+END_IF
+
+// === PSEUDO-RANDOM (LCG) ===
+nRandSeed := nRandSeed * 1664525 + 1013904223;
+nRandVal  := nRandSeed MOD 1000;
+
+// === ÁLLAPOTGÉP ===
+CASE eState OF
+
+    E_MachineState.RUNNING:
+        GVL_Monitoring.xProductionRun     := TRUE;
+        GVL_Monitoring.xMachineErrorState := FALSE;
+
+        // Ciklus timer
+        tCycleTimer(IN := TRUE, PT := T#900MS);
+        IF tCycleTimer.Q THEN
+            tCycleTimer(IN := FALSE);
+
+            // Ciklusidő: 900ms alap ± 50ms szórás
+            // DINT közbülső érték kell, mert a kivonás negatív lehet
+            nTempCycleTime := 900 + UDINT_TO_DINT(nRandVal MOD 100) - 50;
+            GVL_Monitoring.nLastCycleTimeMs := DINT_TO_UDINT(nTempCycleTime);
+
+            // Számlálók növelése
+            GVL_Monitoring.nCycleCount  := GVL_Monitoring.nCycleCount + 1;
+            IF (nRandVal MOD 100) < 3 THEN   // ~3% selejt
+                GVL_Monitoring.nNOK_Counter := GVL_Monitoring.nNOK_Counter + 1;
+            ELSE
+                GVL_Monitoring.nOK_Counter  := GVL_Monitoring.nOK_Counter + 1;
+            END_IF
+
+            // Termék típus váltás ~100 ciklusonként
+            IF (GVL_Monitoring.nCycleCount MOD 100) = 0 THEN
+                GVL_Monitoring.nProdType := DINT_TO_INT(1 + UDINT_TO_DINT(nRandVal MOD 3));
+            END_IF
+        END_IF
+
+        // Micro-stop trigger (~5 percenként)
+        tNextStop(IN := TRUE, PT := UDINT_TO_TIME(nNextStopSecs * 1000));
+        IF tNextStop.Q THEN
+            tNextStop(IN := FALSE);
+            nStopSecs     := 2 + (nRandVal MOD 28);   // 2-30 mp
+            tStopStart    := TIME();
+            eState        := E_MachineState.MICRO_STOP;
+            nNextStopSecs := 280 + (nRandVal MOD 40);
+        END_IF
+
+        // Fault trigger (~60 percenként)
+        tNextFault(IN := TRUE, PT := UDINT_TO_TIME(nNextFaultSecs * 1000));
+        IF tNextFault.Q THEN
+            tNextFault(IN := FALSE);
+            nFaultSecs     := 120 + (nRandVal MOD 480); // 2-10 perc
+            tStopStart     := TIME();
+            eState         := E_MachineState.FAULT;
+            nNextFaultSecs := 3500 + (nRandVal MOD 500);
+        END_IF
+
+    E_MachineState.MICRO_STOP:
+        GVL_Monitoring.xProductionRun     := FALSE;
+        GVL_Monitoring.xMachineErrorState := FALSE;
+
+        tStopTimer(IN := TRUE, PT := UDINT_TO_TIME(nStopSecs * 1000));
+        IF tStopTimer.Q THEN
+            tStopTimer(IN := FALSE);
+            GVL_Monitoring.nLastStoppageTimeMs := nStopSecs * 1000;
+            eState := E_MachineState.RUNNING;
+        END_IF
+
+    E_MachineState.FAULT:
+        GVL_Monitoring.xProductionRun     := FALSE;
+        GVL_Monitoring.xMachineErrorState := TRUE;
+
+        tStopTimer(IN := TRUE, PT := UDINT_TO_TIME(nFaultSecs * 1000));
+        IF tStopTimer.Q THEN
+            tStopTimer(IN := FALSE);
+            GVL_Monitoring.nLastStoppageTimeMs := nFaultSecs * 1000;
+            GVL_Monitoring.xMachineErrorState  := FALSE;
+            eState := E_MachineState.RUNNING;
+        END_IF
+
+END_CASE

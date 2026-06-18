@@ -1,0 +1,122 @@
+version: "3.8"
+
+# WSL2 Podman workaround: aardvark-dns requires D-Bus/systemd (not available in
+# podman-machine-default Fedora 43). Pre-create the network with --disable-dns
+# and use static IPs + extra_hosts for service-name resolution.
+#
+# Pre-flight (run once, or after full cleanup):
+#   podman network create --disable-dns --subnet 10.89.10.0/24 --gateway 10.89.10.1 monitoring_phase1
+#
+# Healthchecks are intentionally omitted: rootless Podman without systemd cannot
+# schedule them (no /run/user/0/bus). On RHEL 9 VMs (Phase 2) with systemd,
+# add healthcheck blocks back and change depends_on conditions to service_healthy.
+#
+# On RHEL 9 / Rocky Linux VMs (Phase 2) with proper systemd remove the network
+# workaround: delete x-hosts, static ipv4_address, external network block, and
+# change the network to a normal bridge network definition.
+
+x-hosts: &service-hosts
+  extra_hosts:
+    - "simulator:10.89.10.10"
+    - "telegraf:10.89.10.11"
+    - "prometheus:10.89.10.12"
+    - "grafana:10.89.10.13"
+
+services:
+  simulator:
+    build:
+      context: ./simulator
+      dockerfile: Dockerfile
+    container_name: simulator
+    restart: unless-stopped
+    ports:
+      - "${SIMULATOR_PORT:-8000}:8000"
+    networks:
+      monitoring:
+        ipv4_address: 10.89.10.10
+    <<: *service-hosts
+    environment:
+      - SITE_NAME=${SITE_NAME:-factory_poc}
+      - ENVIRONMENT=${ENVIRONMENT:-poc}
+      - SIMULATOR_PORT=8000
+      - DEGRADATION_START_HOURS=${DEGRADATION_START_HOURS:-8}
+
+  telegraf:
+    image: telegraf:1.30
+    container_name: telegraf
+    restart: unless-stopped
+    # WSL2 rootless Podman: bypass /entrypoint.sh which calls setpriv (not permitted)
+    user: root
+    entrypoint: ["telegraf"]
+    ports:
+      - "9273:9273"
+    volumes:
+      - ./telegraf/telegraf.conf:/etc/telegraf/telegraf.conf:ro,z
+    networks:
+      monitoring:
+        ipv4_address: 10.89.10.11
+    <<: *service-hosts
+    depends_on:
+      - simulator
+    environment:
+      - SITE_NAME=${SITE_NAME:-factory_poc}
+      - ENVIRONMENT=${ENVIRONMENT:-poc}
+      - SQL_SERVER=${SQL_SERVER:-host.docker.internal}
+      - SQL_PORT=${SQL_PORT:-1433}
+      - SQL_DB=${SQL_DB:-OTMonitoring}
+      - SQL_USER=${SQL_USER:-telegraf_writer}
+      - SQL_PASSWORD=${SQL_PASSWORD:-changeme}
+
+  prometheus:
+    image: prom/prometheus:v2.52.0
+    container_name: prometheus
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro,z
+      - prometheus_data:/prometheus
+    networks:
+      monitoring:
+        ipv4_address: 10.89.10.12
+    <<: *service-hosts
+    depends_on:
+      - telegraf
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=${PROMETHEUS_RETENTION:-15d}'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--web.enable-lifecycle'
+
+  grafana:
+    image: grafana/grafana:11.0.0
+    container_name: grafana
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro,z
+      - grafana_data:/var/lib/grafana
+    networks:
+      monitoring:
+        ipv4_address: 10.89.10.13
+    <<: *service-hosts
+    depends_on:
+      - prometheus
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GF_SECURITY_ADMIN_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GF_SECURITY_ADMIN_PASSWORD:-changeme_poc_2024}
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_AUTH_ANONYMOUS_ENABLED=false
+      - GF_SERVER_HTTP_PORT=3000
+
+networks:
+  monitoring:
+    external: true
+    name: monitoring_phase1
+
+volumes:
+  prometheus_data:
+  grafana_data:

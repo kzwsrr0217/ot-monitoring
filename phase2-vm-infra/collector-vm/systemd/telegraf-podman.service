@@ -1,0 +1,19 @@
+[Unit]
+Description=Telegraf OT Monitoring Container
+After=network.target
+
+[Service]
+Restart=always
+RestartSec=5
+EnvironmentFile=/opt/ot-monitoring/telegraf/.env
+ExecStart=podman run --rm \
+  --name telegraf \
+  --env-file /opt/ot-monitoring/telegraf/.env \
+  -v /opt/ot-monitoring/telegraf/telegraf.conf:/etc/telegraf/telegraf.conf:ro \
+  -v /opt/ot-monitoring/telegraf/telegraf-vlan-low.conf:/etc/telegraf/telegraf.d/telegraf-vlan-low.conf:ro \
+  -p 9273:9273 \
+  telegraf:1.30
+ExecStop=podman stop telegraf
+
+[Install]
+WantedBy=multi-user.target
