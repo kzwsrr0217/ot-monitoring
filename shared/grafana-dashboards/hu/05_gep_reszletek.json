@@ -25,48 +25,56 @@
         "defaults": {
           "color": {"mode": "thresholds"},
           "custom": {
-            "axisBorderShow": false,
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 50,
-            "gradientMode": "none",
+            "colWidth": 0.9,
+            "fillOpacity": 80,
             "hideFrom": {"legend": false, "tooltip": false, "viz": false},
             "insertNulls": false,
-            "lineInterpolation": "stepBefore",
-            "lineWidth": 2,
-            "pointSize": 5,
-            "scaleDistribution": {"type": "linear"},
-            "showPoints": "never",
-            "spanNulls": false,
-            "stacking": {"group": "A", "mode": "none"},
-            "thresholdsStyle": {"mode": "area"}
+            "lineWidth": 1,
+            "spanNulls": false
           },
-          "mappings": [],
-          "max": 1.2,
-          "min": -0.1,
+          "mappings": [
+            {
+              "options": {
+                "0": {"color": "orange", "index": 0, "text": "Leállt"},
+                "1": {"color": "green", "index": 1, "text": "Termel"}
+              },
+              "type": "value"
+            }
+          ],
           "thresholds": {
             "mode": "absolute",
-            "steps": [{"color": "orange", "value": null}, {"color": "green", "value": 0.5}]
+            "steps": [{"color": "orange", "value": null}, {"color": "green", "value": 1}]
           }
         },
         "overrides": [
           {
-            "matcher": {"id": "byFrameRefID", "options": "B"},
+            "matcher": {"id": "byRegexp", "options": ".*hiba.*"},
             "properties": [
-              {"id": "thresholds", "value": {"mode": "absolute", "steps": [{"color": "transparent", "value": null}, {"color": "red", "value": 0.5}]}},
-              {"id": "custom.fillOpacity", "value": 30}
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "options": {
+                      "0": {"color": "green", "index": 0, "text": "Rendben"},
+                      "1": {"color": "red", "index": 1, "text": "HIBA"}
+                    },
+                    "type": "value"
+                  }
+                ]
+              }
             ]
           }
         ]
       },
-      "gridPos": {"h": 6, "w": 24, "x": 0, "y": 0},
+      "gridPos": {"h": 7, "w": 24, "x": 0, "y": 0},
       "id": 1,
       "options": {
+        "colWidth": 0.9,
+        "fillOpacity": 80,
         "legend": {"displayMode": "list", "placement": "bottom", "showLegend": true},
-        "tooltip": {"mode": "multi", "sort": "none"}
+        "rowHeight": 0.9,
+        "showValue": "never",
+        "tooltip": {"mode": "single", "sort": "none"}
       },
       "targets": [
         {
@@ -83,7 +91,7 @@
         }
       ],
       "title": "Gépállapot idővonal",
-      "type": "timeseries"
+      "type": "status-history"
     },
     {
       "datasource": {"type": "prometheus", "uid": "prometheus"},
