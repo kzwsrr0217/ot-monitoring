@@ -46,39 +46,16 @@
         "minVizHeight": 75,
         "minVizWidth": 75,
         "orientation": "auto",
-        "reduceOptions": {"calcs": ["lastNotNull"], "fields": "/^OEE$/", "values": false},
+        "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
         "showThresholdLabels": true,
         "showThresholdMarkers": true
       },
       "targets": [
         {
           "datasource": {"type": "prometheus", "uid": "prometheus"},
-          "expr": "avg_over_time(production_run{machine_id=~\"$machine_id\"}[8h])",
-          "hide": true,
-          "legendFormat": "Avail",
+          "expr": "avg_over_time(production_run{machine_id=~\"$machine_id\"}[8h]) * clamp_max(900.0 / clamp_min(avg_over_time(last_cycle_time_ms{machine_id=~\"$machine_id\"}[8h]), 1), 1) * (rate(ok_counter_total{machine_id=~\"$machine_id\"}[8h]) / clamp_min(rate(ok_counter_total{machine_id=~\"$machine_id\"}[8h]) + rate(nok_counter_total{machine_id=~\"$machine_id\"}[8h]), 0.001)) * 100",
+          "legendFormat": "{{machine_id}}",
           "refId": "A"
-        },
-        {
-          "datasource": {"type": "prometheus", "uid": "prometheus"},
-          "expr": "clamp_max(900.0 / clamp_min(avg_over_time(last_cycle_time_ms{machine_id=~\"$machine_id\"}[8h]), 1), 1)",
-          "hide": true,
-          "legendFormat": "Perf",
-          "refId": "B"
-        },
-        {
-          "datasource": {"type": "prometheus", "uid": "prometheus"},
-          "expr": "rate(ok_counter_total{machine_id=~\"$machine_id\"}[8h]) / clamp_min(rate(ok_counter_total{machine_id=~\"$machine_id\"}[8h]) + rate(nok_counter_total{machine_id=~\"$machine_id\"}[8h]), 0.001)",
-          "hide": true,
-          "legendFormat": "Qual",
-          "refId": "C"
-        },
-        {
-          "datasource": {"type": "__expr__", "uid": "__expr__"},
-          "expression": "$A * $B * $C * 100",
-          "hide": false,
-          "legendFormat": "OEE",
-          "refId": "OEE",
-          "type": "math"
         }
       ],
       "title": "OEE % (8h estimate)",
@@ -380,41 +357,13 @@
       "targets": [
         {
           "datasource": {"type": "prometheus", "uid": "prometheus"},
-          "expr": "avg_over_time(production_run{machine_id=~\"$machine_id\"}[8h])",
-          "hide": true,
-          "legendFormat": "__auto",
+          "expr": "avg_over_time(production_run{machine_id=~\"$machine_id\"}[8h]) * clamp_max(900.0 / clamp_min(avg_over_time(last_cycle_time_ms{machine_id=~\"$machine_id\"}[8h]), 1), 1) * (rate(ok_counter_total{machine_id=~\"$machine_id\"}[8h]) / clamp_min(rate(ok_counter_total{machine_id=~\"$machine_id\"}[8h]) + rate(nok_counter_total{machine_id=~\"$machine_id\"}[8h]), 0.001)) * 100",
+          "legendFormat": "{{machine_id}}",
           "refId": "A"
-        },
-        {
-          "datasource": {"type": "prometheus", "uid": "prometheus"},
-          "expr": "clamp_max(900.0 / clamp_min(avg_over_time(last_cycle_time_ms{machine_id=~\"$machine_id\"}[8h]), 1), 1)",
-          "hide": true,
-          "legendFormat": "__auto",
-          "refId": "B"
-        },
-        {
-          "datasource": {"type": "prometheus", "uid": "prometheus"},
-          "expr": "rate(ok_counter_total{machine_id=~\"$machine_id\"}[8h]) / clamp_min(rate(ok_counter_total{machine_id=~\"$machine_id\"}[8h]) + rate(nok_counter_total{machine_id=~\"$machine_id\"}[8h]), 0.001)",
-          "hide": true,
-          "legendFormat": "__auto",
-          "refId": "C"
-        },
-        {
-          "datasource": {"type": "__expr__", "uid": "__expr__"},
-          "expression": "$A * $B * $C * 100",
-          "hide": false,
-          "legendFormat": "OEE %",
-          "refId": "OEE",
-          "type": "math"
         }
       ],
       "title": "OEE Comparison by Machine",
-      "transformations": [
-        {
-          "id": "labelsToFields",
-          "options": {"mode": "columns", "valueLabel": "machine_id"}
-        }
-      ],
+      "transformations": [],
       "type": "barchart"
     },
     {

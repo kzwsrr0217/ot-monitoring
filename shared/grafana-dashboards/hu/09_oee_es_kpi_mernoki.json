@@ -12,7 +12,7 @@
       }
     ]
   },
-  "description": "OEE (Rendelkezésre állás × Teljesítmény × Minőség), MTBF becslés, mikro-leállások, gépenként KPI összehasonlítás.",
+  "description": "Mérnöki OEE elemzés: Rendelkezésre állás × Teljesítmény × Minőség, MTBF, mikro-leállások (HU).",
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
@@ -428,7 +428,7 @@
   ],
   "refresh": "5s",
   "schemaVersion": 39,
-  "tags": ["gyar", "oee", "kpi"],
+  "tags": ["mernoki", "gyar", "oee", "kpi", "hu"],
   "templating": {
     "list": [
       {
@@ -455,8 +455,8 @@
   "time": {"from": "now-1h", "to": "now"},
   "timepicker": {},
   "timezone": "browser",
-  "title": "06 – OEE és KPI",
-  "uid": "oee-kpi-03-hu",
+  "title": "09 – OEE és KPI (Mérnöki)",
+  "uid": "oee-kpi-eng-hu",
   "version": 1,
   "weekStart": ""
 }

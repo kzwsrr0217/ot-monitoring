@@ -142,18 +142,25 @@ a Collector VM Telegraf konfigjában `[[inputs.prometheus]]` → `[[inputs.ads]]
 
 ### Dashboardok listája
 
-| Szám | Cím | Nyelv | Mappa |
-|---|---|---|---|
-| 01 | Factory Overview | EN | Mérnöki nézet |
-| 02 | Machine Detail | EN | Mérnöki nézet |
-| 03 | OEE & KPI | EN | Mérnöki nézet |
-| 04 | Gyárfelügyelet | HU | Termelési nézet |
-| 05 | Gép részletek | HU | Termelési nézet |
-| 06 | OEE és KPI | HU | Vezetői KPI |
+| Szám | Cím | Nyelv | Mappa | Célközönség |
+|---|---|---|---|---|
+| 01 | Factory Overview | EN | Mérnöki nézet | Mérnök |
+| 02 | Machine Detail | EN | Mérnöki nézet | Mérnök |
+| 03 | OEE & KPI | EN | Mérnöki nézet | Mérnök |
+| 04 | Gyárfelügyelet | HU | Termelési nézet | Operátor |
+| 05 | Gép részletek | HU | Termelési nézet | Operátor |
+| 06 | OEE és KPI | HU | Vezetői KPI | Menedzsment |
+| 07 | Gyárfelügyelet (Mérnöki) | HU | Mérnöki nézet (HU) | Mérnök |
+| 08 | Gép részletek (Mérnöki) | HU | Mérnöki nézet (HU) | Mérnök |
+| 09 | OEE és KPI (Mérnöki) | HU | Mérnöki nézet (HU) | Mérnök |
 
 A HU dashboardok (`shared/grafana-dashboards/hu/`) azonos Prometheus lekérdezéseket
 használnak mint az EN változatok — csak a szövegek (panel címek, tengelyfeliratok,
 értékmappingek) vannak lefordítva. Külön UID-ek, egyszerre élnek Grafanában.
+
+Az OEE számítás (`Availability × Performance × Quality × 100`) egyetlen PromQL
+kifejezéssel fut — Grafana belső expression engine nélkül — így nem fordul elő
+500-as hiba ha valamelyik gépen nincs adat.
 
 ### Grafana felhasználók és jogosultságok (Phase 2 — 192.168.100.20:3000)
 
@@ -161,12 +168,14 @@ használnak mint az EN változatok — csak a szövegek (panel címek, tengelyfe
 |---|---|---|---|
 | `operator` | `Operator1!` | Termelési nézet | Viewer (olvasás, export) |
 | `menedzser` | `Menedzser1!` | Termelési nézet + Vezetői KPI | Viewer (olvasás, export) |
+| `mernok` | `Mernok1!` | Mérnöki nézet + Mérnöki nézet (HU) | Viewer (olvasás, export) |
 | `admin` | `changeme_poc_2024` | Minden mappa | Admin (szerkesztés, törlés) |
 
 **Mappastruktúra és jogosultság logika:**
-- **Termelési nézet** — operator és menedzser látja: gépallapot, termelési tempó (HU)
+- **Termelési nézet** — operator és menedzser látja: gépállapot, termelési tempó (HU)
 - **Vezetői KPI** — csak menedzser látja: OEE, MTBF, leállás elemzés (HU)
-- **Mérnöki nézet** — csak admin látja: EN dashboardok, szerkeszthető
+- **Mérnöki nézet** — csak mernok látja: EN dashboardok részletes adatokkal
+- **Mérnöki nézet (HU)** — csak mernok látja: HU mérnöki dashboardok
 
 > **Megjegyzés (OSS korlát):** Grafana Community verzióban mappa-szintű jogosultság
 > érhető el. Dashboard-szintű és sor-szintű (row-level) jogosultság csak Grafana

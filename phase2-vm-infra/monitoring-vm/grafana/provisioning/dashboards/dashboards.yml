@@ -1,12 +1,42 @@
 apiVersion: 1
 
 providers:
-  - name: default
+  - name: engineer-en
     orgId: 1
-    folder: Factory
+    folder: "Mérnöki nézet"
     type: file
     disableDeletion: false
     updateIntervalSeconds: 30
     allowUiUpdates: true
     options:
-      path: /etc/grafana/provisioning/dashboards
+      path: /etc/grafana/provisioning/dashboards/en
+
+  - name: production-hu
+    orgId: 1
+    folder: "Termelési nézet"
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      path: /etc/grafana/provisioning/dashboards/production-hu
+
+  - name: management-hu
+    orgId: 1
+    folder: "Vezetői KPI"
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      path: /etc/grafana/provisioning/dashboards/management-hu
+
+  - name: engineer-hu
+    orgId: 1
+    folder: "Mérnöki nézet (HU)"
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      path: /etc/grafana/provisioning/dashboards/engineer-hu
